@@ -8,11 +8,93 @@ const counter=document.getElementById('counter');
 const introMessage=intro?.querySelector('p');
 let index=0;
 
-function typeNode(node,speed=24){return new Promise(resolve=>{const original=node.textContent;node.textContent='';let i=0;const tick=()=>{if(i<original.length){node.textContent+=original.charAt(i++);setTimeout(tick,speed)}else resolve()};tick()})}
-function getLetterTextNodes(root){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode(node){if(!node.textContent.trim())return NodeFilter.FILTER_REJECT;return NodeFilter.FILTER_ACCEPT}});const nodes=[];let n;while(n=walker.nextNode())nodes.push(n);return nodes}
-async function typeLetter(){const page=document.querySelector('.letter-page');if(!page||page.dataset.typed==='yes')return;page.dataset.typed='yes';const nodes=getLetterTextNodes(page);for(const node of nodes){await typeNode(node,22);await new Promise(r=>setTimeout(r,100))}}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
-if(introMessage){const text=introMessage.textContent.trim();introMessage.textContent='';introMessage.classList.add('typing');let i=0;const typeIntro=()=>{if(i<text.length){introMessage.textContent+=text.charAt(i++);setTimeout(typeIntro,42)}else introMessage.classList.remove('typing')};setTimeout(typeIntro,650)}
+function typeText(node,text,speed=34){
+  return new Promise(resolve=>{
+    node.textContent='';
+    let i=0;
+    const tick=()=>{
+      if(i<text.length){
+        node.textContent+=text.charAt(i++);
+        setTimeout(tick,speed);
+      }else resolve();
+    };
+    tick();
+  });
+}
 
-envelope.addEventListener('click',()=>{if(envelope.classList.contains('open'))return;envelope.classList.add('open');setTimeout(()=>{intro.style.display='none';story.classList.add('show');window.scrollTo({top:0,behavior:'smooth'});typeLetter()},900)});
-next.addEventListener('click',()=>{if(index<slides.length-1){slides[index].classList.remove('active');index++;slides[index].classList.add('active');counter.textContent=String(index+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');window.scrollTo({top:0,behavior:'smooth'});if(index===slides.length-1)next.textContent='Son nota ♥'}else{story.classList.remove('show');story.style.display='none';ending.classList.add('show');window.scrollTo({top:0,behavior:'smooth'})}});
+async function typeLetter(){
+  const page=document.querySelector('.letter-page');
+  if(!page||page.dataset.typed==='yes')return;
+  page.dataset.typed='yes';
+
+  // Önce bütün mektubu tamamen görünmez yapıyoruz.
+  // Böylece aşağıdaki paragraflar daha yazılmadan sayfada görünmeyecek.
+  page.classList.add('typing-letter');
+
+  const targets=[
+    page.querySelector('.letter-small'),
+    page.querySelector('h2'),
+    ...page.querySelectorAll('p'),
+    page.querySelector('.letter-sign')
+  ].filter(Boolean);
+
+  const originals=targets.map(n=>n.textContent);
+  targets.forEach(n=>{
+    n.textContent='';
+    n.classList.add('type-target');
+  });
+
+  // Başlıklar da mektubun yazılışının bir parçası olsun.
+  for(let i=0;i<targets.length;i++){
+    const node=targets[i];
+    const text=originals[i];
+    const speed=node.matches('h2')?48:node.classList.contains('letter-small')?65:30;
+    await typeText(node,text,speed);
+    await wait(node.matches('p')?420:220);
+  }
+
+  page.classList.remove('typing-letter');
+}
+
+if(introMessage){
+  const text=introMessage.textContent.trim();
+  introMessage.textContent='';
+  introMessage.classList.add('typing');
+  let i=0;
+  const typeIntro=()=>{
+    if(i<text.length){
+      introMessage.textContent+=text.charAt(i++);
+      setTimeout(typeIntro,42);
+    }else introMessage.classList.remove('typing');
+  };
+  setTimeout(typeIntro,650);
+}
+
+envelope.addEventListener('click',()=>{
+  if(envelope.classList.contains('open'))return;
+  envelope.classList.add('open');
+  setTimeout(()=>{
+    intro.style.display='none';
+    story.classList.add('show');
+    window.scrollTo({top:0,behavior:'smooth'});
+    typeLetter();
+  },900);
+});
+
+next.addEventListener('click',()=>{
+  if(index<slides.length-1){
+    slides[index].classList.remove('active');
+    index++;
+    slides[index].classList.add('active');
+    counter.textContent=String(index+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');
+    window.scrollTo({top:0,behavior:'smooth'});
+    if(index===slides.length-1)next.textContent='Son nota ♥';
+  }else{
+    story.classList.remove('show');
+    story.style.display='none';
+    ending.classList.add('show');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+});
